@@ -2,150 +2,134 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from scipy.signal import hilbert
-import io
+from scipy.linalg import eigh
+from scipy.spatial.distance import cdist
+from scipy.stats import spearmanr
 import tempfile
 import os
 
-# ── Configuración de página ──────────────────────────────────────────────────
 st.set_page_config(
     page_title="EEG Cognitive Load Classifier",
     page_icon="🧠",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    layout="centered"
 )
 
-# ── Estilos ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'IBM Plex Sans', sans-serif;
-    background-color: #0a0a0f;
-    color: #e8e8f0;
+    background-color: #f5f5f0;
+    color: #1a1a1a;
 }
-
-.stApp {
-    background-color: #0a0a0f;
-}
+.stApp { background-color: #f5f5f0; }
 
 h1, h2, h3 {
     font-family: 'IBM Plex Mono', monospace;
-    color: #e8e8f0;
+    color: #1a1a1a;
 }
 
 .metric-card {
-    background: #13131f;
-    border: 1px solid #2a2a3f;
+    background: #ffffff;
+    border: 1px solid #d0d0c8;
     border-radius: 6px;
-    padding: 20px;
+    padding: 18px;
     text-align: center;
-    margin: 8px 0;
+    margin: 6px 0;
 }
-
 .metric-label {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
-    color: #888;
+    color: #666;
     text-transform: uppercase;
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
-
 .metric-value {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 600;
-    color: #7eb8f7;
+    color: #1a1a1a;
 }
-
 .result-G {
-    background: #0d1f0d;
-    border: 1px solid #2a5a2a;
-    border-radius: 6px;
+    background: #eef8ee;
+    border: 2px solid #2d8a2d;
+    border-radius: 8px;
     padding: 24px;
     text-align: center;
 }
-
 .result-B {
-    background: #1f0d0d;
-    border: 1px solid #5a2a2a;
-    border-radius: 6px;
+    background: #fef0f0;
+    border: 2px solid #c0392b;
+    border-radius: 8px;
     padding: 24px;
     text-align: center;
 }
-
 .result-label {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    color: #888;
+    font-size: 12px;
+    color: #555;
     text-transform: uppercase;
     letter-spacing: 2px;
 }
-
 .result-value-G {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
-    color: #4ade80;
-    margin: 8px 0;
+    color: #1a6b1a;
+    margin: 10px 0 6px;
 }
-
 .result-value-B {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
-    color: #f87171;
-    margin: 8px 0;
+    color: #c0392b;
+    margin: 10px 0 6px;
 }
-
+.result-desc {
+    font-size: 14px;
+    color: #444;
+    line-height: 1.5;
+}
 .info-box {
-    background: #13131f;
-    border-left: 3px solid #7eb8f7;
+    background: #ffffff;
+    border-left: 3px solid #3a7bd5;
     padding: 16px 20px;
     border-radius: 0 6px 6px 0;
     margin: 16px 0;
     font-size: 14px;
-    line-height: 1.6;
-    color: #aaa;
+    line-height: 1.7;
+    color: #333;
 }
-
-.stUploadedFile {
-    background: #13131f !important;
-    border: 1px solid #2a2a3f !important;
-}
-
-.stButton > button {
-    background: #1a1a2e;
-    color: #7eb8f7;
-    border: 1px solid #7eb8f7;
-    border-radius: 4px;
+.section-title {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 13px;
-    letter-spacing: 1px;
-    padding: 8px 20px;
-    transition: all 0.2s;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 24px 0 12px;
+    border-bottom: 1px solid #d0d0c8;
+    padding-bottom: 6px;
 }
-
-.stButton > button:hover {
-    background: #7eb8f7;
-    color: #0a0a0f;
-}
-
-.divider {
-    border: none;
-    border-top: 1px solid #2a2a3f;
-    margin: 32px 0;
-}
-
 .footer-text {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
-    color: #444;
+    color: #999;
     text-align: center;
-    margin-top: 40px;
+    margin-top: 48px;
+    border-top: 1px solid #d0d0c8;
+    padding-top: 16px;
+}
+.stButton > button {
+    background: #1a1a1a;
+    color: #f5f5f0;
+    border: none;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 8px 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -153,10 +137,6 @@ h1, h2, h3 {
 
 # ── Motor Omega ──────────────────────────────────────────────────────────────
 def motor_omega(sig):
-    """
-    Extrae R (sincronización) y C (coherencia) de señal EEG multicanal.
-    Basado en transformada de Hilbert sobre los 23 canales.
-    """
     analytic = hilbert(sig)
     phases = np.angle(analytic)
     amplitudes = np.abs(analytic)
@@ -166,8 +146,99 @@ def motor_omega(sig):
     return r_val, c_val
 
 
-def cargar_edf(archivo_bytes, duracion_segundos=30):
-    """Carga archivo EDF desde bytes en memoria."""
+# ── SPG: Geometría espectral por ventanas ────────────────────────────────────
+def spg_ventanas(signal, fs, win_s=4, step_s=2, max_wins=40, d=4, N_max=40):
+    """
+    SPG real: embedding de retardo → red de recurrencia → Laplaciano → λ₂, C_dyn
+    Implementación exacta del notebook EEG_COGNITIVE_SPG_ARITHMETIC_CON_CSV.
+    """
+    win = int(win_s * fs)
+    step = int(step_s * fs)
+    Cs, lam2s, Gs = [], [], []
+    np.random.seed(42)
+
+    for s in range(0, min(len(signal) - win, max_wins * step), step):
+        x = signal[s:s + win]
+        if x.std() < 1e-10:
+            continue
+        x = (x - x.mean()) / (x.std() + 1e-10)
+        x = np.clip(x, -4, 4)
+
+        # Embedding de retardo
+        pts = np.array([x[i:i + d] for i in range(len(x) - d + 1)])
+        if len(pts) > N_max:
+            idx = np.linspace(0, len(pts) - 1, N_max).astype(int)
+            pts = pts[idx]
+
+        N = len(pts)
+        D = cdist(pts, pts)
+        D0 = D.copy()
+        np.fill_diagonal(D, np.inf)
+        eps = np.quantile(D[D < np.inf], 0.20)
+
+        # Red de recurrencia
+        Adj = (D < eps).astype(float)
+        np.fill_diagonal(Adj, 0)
+
+        # Conectar nodos aislados
+        for i in np.where(Adj.sum(1) == 0)[0]:
+            j = np.argsort(D0[i])[1]
+            Adj[i, j] = Adj[j, i] = 1.0
+
+        # Laplaciano y espectro
+        L = np.diag(Adj.sum(1)) - Adj
+        ev, evec = eigh(L)
+        k0 = next((k for k in range(1, N) if ev[k] > 1e-8), None)
+        if k0 is None:
+            continue
+
+        lam2 = ev[k0]
+        M1 = np.zeros(N)
+        M2 = np.zeros(N)
+        for k in range(k0, N):
+            lk = ev[k]
+            if lk < 1e-10:
+                continue
+            v2 = evec[:, k] ** 2
+            M1 += v2 / lk
+            M2 += v2 / lk ** 2
+
+        # tau_tilde y C_dyn (varianza del timescale)
+        tt = np.where(M1 > 1e-14, lam2 * (M2 / M1), 0)
+        C = float(np.var(tt))
+        geom = np.where(M1 > 1e-14, M2 / M1, 0)
+        G_pure = float(np.var(geom))
+
+        if np.isfinite(C) and C > 0:
+            Cs.append(C)
+            lam2s.append(lam2)
+            Gs.append(G_pure)
+
+    if len(Cs) < 5:
+        return None
+
+    return {
+        'C_dyn': float(np.mean(Cs)),
+        'lambda2': float(np.mean(lam2s)),
+        'G_pure': float(np.mean(Gs)),
+        'n_ventanas': len(Cs)
+    }
+
+
+def manifold_position(lam2_series, cdyn_series):
+    """d_eff y CI desde series temporales de (λ₂, C_dyn)."""
+    X = np.column_stack([
+        (lam2_series - lam2_series.mean()) / (lam2_series.std() + 1e-12),
+        (cdyn_series - cdyn_series.mean()) / (cdyn_series.std() + 1e-12)
+    ])
+    ev2 = np.maximum(np.linalg.eigvalsh(np.cov(X.T)), 0)
+    d_eff = float(ev2.sum() ** 2 / (ev2 ** 2).sum()) if (ev2 ** 2).sum() > 0 else np.nan
+    rho, _ = spearmanr(lam2_series, cdyn_series)
+    CI = abs(float(rho))
+    return {'d_eff': d_eff, 'CI': CI}
+
+
+def cargar_edf(archivo_bytes, duracion_segundos=62):
     try:
         import pyedflib
         with tempfile.NamedTemporaryFile(suffix='.edf', delete=False) as tmp:
@@ -177,107 +248,87 @@ def cargar_edf(archivo_bytes, duracion_segundos=30):
         f = pyedflib.EdfReader(tmp_path)
         fs = f.getSampleFrequency(0)
         n_canales = min(f.signals_in_file, 23)
-        n_muestras = min(int(fs * duracion_segundos), f.getNSamples()[0])
+        n_disp = f.getNSamples()[0]
+        n_muestras = min(int(fs * duracion_segundos), n_disp)
 
         sig = np.zeros((n_canales, n_muestras))
         for i in range(n_canales):
             sig[i, :] = f.readSignal(i, n=n_muestras)
         f.close()
         os.unlink(tmp_path)
-
         return sig, fs, n_canales
-
     except Exception as e:
         return None, None, None
 
 
-def clasificar(r_rep, c_rep, r_tar, c_tar):
+def clasificar(delta_r):
     """
-    Clasificador entrenado con Random Forest sobre 36 sujetos.
-    Accuracy en test: 72.7% (validado con Monte Carlo 100k iteraciones, media 78.3%)
+    Criterio del experimento: mediana de Delta_R del dataset = -0.005885
+    G (Eficiente): Delta_R > mediana
+    B (Inestable): Delta_R <= mediana
     """
-    delta_r = r_tar - r_rep
-    delta_c = c_tar - c_rep
-
-    # Lógica del clasificador basada en patrones del dataset
-    # G (eficiente): red más estable, Delta_C moderado
-    # B (inestable): mayor Delta_C, red más variable
-
-    score_G = 0.0
-
-    # R_Tarea más bajo tiende a G
-    if r_tar < 0.016:
-        score_G += 0.3
-    elif r_tar < 0.020:
-        score_G += 0.15
-
-    # Delta_C moderado tiende a G
-    if abs(delta_c) < 0.05:
-        score_G += 0.3
-    elif abs(delta_c) < 0.10:
-        score_G += 0.15
-
-    # C_Tarea en rango típico de G
-    if 0.15 < c_tar < 0.28:
-        score_G += 0.2
-
-    # Delta_R negativo tiende a G (cerebro se sincroniza menos, más fluido)
-    if delta_r < 0:
-        score_G += 0.2
-
-    prob_G = min(max(score_G, 0.1), 0.9)
-    grupo = 'G' if prob_G >= 0.5 else 'B'
-
-    return grupo, prob_G, delta_r, delta_c
+    MEDIANA_DATASET = -0.005885
+    if delta_r > MEDIANA_DATASET:
+        return 'G'
+    else:
+        return 'B'
 
 
-def grafica_espacio_spg(r_rep, c_rep, r_tar, c_tar, grupo):
-    """Visualiza el sujeto en el espacio R-C."""
-    fig, ax = plt.subplots(figsize=(7, 5))
-    fig.patch.set_facecolor('#0a0a0f')
-    ax.set_facecolor('#13131f')
+def grafica(r_rep, c_rep, r_tar, c_tar, grupo, spg_rep, spg_tar):
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig.patch.set_facecolor('#f5f5f0')
 
-    # Valores de referencia del dataset (36 sujetos)
-    np.random.seed(42)
-    r_ref_G = np.random.normal(0.015, 0.005, 26)
-    c_ref_G = np.random.normal(0.22, 0.04, 26)
-    r_ref_B = np.random.normal(0.017, 0.005, 10)
-    c_ref_B = np.random.normal(0.24, 0.05, 10)
+    # Panel 1: Espacio R-C Motor Omega
+    ax = axes[0]
+    ax.set_facecolor('#ffffff')
+    ax.set_title('Motor Omega: espacio R-C', fontfamily='monospace', fontsize=11, color='#1a1a1a')
 
-    ax.scatter(r_ref_G, c_ref_G, color='#4ade80', alpha=0.3, s=40,
-               label='G — Eficiente (referencia)', zorder=2)
-    ax.scatter(r_ref_B, c_ref_B, color='#f87171', alpha=0.3, s=40,
-               label='B — Inestable (referencia)', zorder=2)
+    color = '#2d8a2d' if grupo == 'G' else '#c0392b'
 
-    # Reposo del sujeto
-    ax.scatter(r_rep, c_rep, color='#7eb8f7', s=120, zorder=5,
-               marker='o', edgecolors='white', linewidth=1.5, label='Tu señal — Reposo')
-
-    # Tarea del sujeto
-    color_sujeto = '#4ade80' if grupo == 'G' else '#f87171'
-    ax.scatter(r_tar, c_tar, color=color_sujeto, s=180, zorder=6,
-               marker='*', edgecolors='white', linewidth=1.5, label='Tu señal — Tarea')
-
-    # Flecha de reposo a tarea
+    ax.scatter(r_rep, c_rep, color='#3a7bd5', s=120, zorder=5,
+               marker='o', edgecolors='white', linewidth=1.5, label='Reposo')
+    ax.scatter(r_tar, c_tar, color=color, s=180, zorder=6,
+               marker='*', edgecolors='white', linewidth=1.5, label='Tarea')
     ax.annotate('', xy=(r_tar, c_tar), xytext=(r_rep, c_rep),
                 arrowprops=dict(arrowstyle='->', color='#888', lw=1.5))
 
-    ax.set_xlabel('R  (Rigidez espectral)', color='#888',
-                  fontfamily='monospace', fontsize=11)
-    ax.set_ylabel('C  (Coherencia dinámica)', color='#888',
-                  fontfamily='monospace', fontsize=11)
-    ax.set_title('Espacio SPG: Reposo → Tarea', color='#e8e8f0',
-                 fontfamily='monospace', fontsize=12)
+    ax.set_xlabel('R  (Rigidez espectral)', color='#444', fontfamily='monospace', fontsize=10)
+    ax.set_ylabel('C  (Coherencia dinámica)', color='#444', fontfamily='monospace', fontsize=10)
+    ax.tick_params(colors='#666')
+    for spine in ax.spines.values():
+        spine.set_color('#d0d0c8')
+    ax.grid(alpha=0.3, color='#ccc')
+    ax.legend(facecolor='#fff', edgecolor='#d0d0c8', labelcolor='#333', fontsize=9)
 
-    ax.tick_params(colors='#555')
-    ax.spines['bottom'].set_color('#2a2a3f')
-    ax.spines['left'].set_color('#2a2a3f')
-    ax.spines['top'].set_color('#2a2a3f')
-    ax.spines['right'].set_color('#2a2a3f')
-    ax.grid(alpha=0.1, color='#444')
+    # Panel 2: SPG - C_dyn reposo vs tarea
+    ax2 = axes[1]
+    ax2.set_facecolor('#ffffff')
+    ax2.set_title('SPG: C_dyn por estado', fontfamily='monospace', fontsize=11, color='#1a1a1a')
 
-    legend = ax.legend(facecolor='#13131f', edgecolor='#2a2a3f',
-                       labelcolor='#aaa', fontsize=9)
+    if spg_rep and spg_tar:
+        estados = ['Reposo', 'Tarea']
+        valores = [spg_rep['C_dyn'], spg_tar['C_dyn']]
+        colores = ['#3a7bd5', color]
+        bars = ax2.bar(estados, valores, color=colores, alpha=0.85, edgecolor='white', linewidth=1.5)
+        ax2.set_ylabel('C_dyn (varianza del timescale τ)', color='#444',
+                       fontfamily='monospace', fontsize=9)
+
+        for bar, val in zip(bars, valores):
+            ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(valores) * 0.02,
+                     f'{val:.4f}', ha='center', va='bottom',
+                     fontfamily='monospace', fontsize=10, color='#1a1a1a')
+
+        delta_cdyn = spg_tar['C_dyn'] - spg_rep['C_dyn']
+        ax2.set_title(f'SPG: C_dyn por estado  (ΔC_dyn = {delta_cdyn:+.4f})',
+                      fontfamily='monospace', fontsize=10, color='#1a1a1a')
+    else:
+        ax2.text(0.5, 0.5, 'Señal insuficiente\npara SPG', ha='center', va='center',
+                 transform=ax2.transAxes, color='#999', fontfamily='monospace')
+
+    for spine in ax2.spines.values():
+        spine.set_color('#d0d0c8')
+    ax2.tick_params(colors='#666')
+    ax2.grid(alpha=0.2, color='#ccc', axis='y')
 
     plt.tight_layout()
     return fig
@@ -285,205 +336,227 @@ def grafica_espacio_spg(r_rep, c_rep, r_tar, c_tar, grupo):
 
 # ── UI ───────────────────────────────────────────────────────────────────────
 st.markdown("# 🧠 EEG Cognitive Load Classifier")
-st.markdown("**por Edher Alan Arteaga Marroquin · 2026**")
-
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown("**Edher Alan Arteaga Marroquin · 2026**")
+st.markdown("---")
 
 st.markdown("""
 <div class="info-box">
-Sube dos grabaciones EDF de 30 segundos — una en reposo y una durante 
-aritmética mental. El Motor Omega extrae R (rigidez espectral) y C 
-(coherencia dinámica) de los 23 canales EEG, y predice si el cerebro 
-procesó de forma eficiente (G) o en sobrecarga (B).
-<br><br>
-Dataset de referencia: <strong>PhysioNet EEG During Mental Arithmetic Tasks</strong> · 
-36 sujetos · Accuracy 72.7% · Monte Carlo 100k iteraciones: media 78.3%
+Sube dos grabaciones EDF — una en reposo y una durante tarea cognitiva. 
+El análisis usa <strong>dos métodos en paralelo</strong>:<br><br>
+<strong>Motor Omega</strong> — extrae R y C directamente de la señal EEG multicanal 
+via transformada de Hilbert.<br><br>
+<strong>SPG (Geometría de Persistencia Espectral)</strong> — construye una red de recurrencia 
+en el espacio de fase de la señal, calcula el Laplaciano de esa red, y extrae 
+λ₂ (conectividad global) y C_dyn = Var(τ) (varianza del timescale de persistencia).<br><br>
+La clasificación G/B sigue el criterio del experimento: 
+<strong>ΔR > mediana del dataset → G (Eficiente)</strong>.
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown("---")
 
 col1, col2 = st.columns(2)
-
 with col1:
     st.markdown("#### Grabación en Reposo")
-    st.caption("Cerebro en estado basal, sin tarea.")
-    archivo_reposo = st.file_uploader(
-        "Sube el EDF de reposo",
-        type=['edf'],
-        key='reposo',
-        label_visibility='collapsed'
-    )
-
+    st.caption("Estado basal, sin tarea.")
+    archivo_reposo = st.file_uploader("EDF reposo", type=['edf'],
+                                       key='reposo', label_visibility='collapsed')
 with col2:
     st.markdown("#### Grabación en Tarea")
-    st.caption("Cerebro durante aritmética mental.")
-    archivo_tarea = st.file_uploader(
-        "Sube el EDF de tarea",
-        type=['edf'],
-        key='tarea',
-        label_visibility='collapsed'
-    )
+    st.caption("Durante tarea cognitiva.")
+    archivo_tarea = st.file_uploader("EDF tarea", type=['edf'],
+                                      key='tarea', label_visibility='collapsed')
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+canal_spg = st.selectbox(
+    "Canal para SPG (elige el más frontal disponible en tu dataset)",
+    options=list(range(23)),
+    index=16,
+    format_func=lambda x: f"Canal {x} {'(Fz — recomendado para aritmética)' if x == 16 else ''}"
+)
+
+st.markdown("---")
 
 if archivo_reposo and archivo_tarea:
-    with st.spinner('Procesando señales con Motor Omega...'):
+    with st.spinner('Procesando con Motor Omega y SPG...'):
 
-        bytes_reposo = archivo_reposo.read()
-        bytes_tarea = archivo_tarea.read()
-
-        sig_rep, fs_rep, n_ch_rep = cargar_edf(bytes_reposo)
-        sig_tar, fs_tar, n_ch_tar = cargar_edf(bytes_tarea)
+        sig_rep, fs_rep, n_ch_rep = cargar_edf(archivo_reposo.read())
+        sig_tar, fs_tar, n_ch_tar = cargar_edf(archivo_tarea.read())
 
         if sig_rep is None or sig_tar is None:
-            st.error("No se pudieron leer los archivos EDF. Verifica que sean archivos válidos.")
+            st.error("No se pudieron leer los archivos EDF.")
         else:
+            # Motor Omega
             r_rep, c_rep = motor_omega(sig_rep)
             r_tar, c_tar = motor_omega(sig_tar)
+            delta_r = r_tar - r_rep
+            delta_c = c_tar - c_rep
 
-            grupo, prob_G, delta_r, delta_c = clasificar(r_rep, c_rep, r_tar, c_tar)
+            # Clasificación por mediana de Delta_R
+            grupo = clasificar(delta_r)
+
+            # SPG por ventanas en canal seleccionado
+            ch = min(canal_spg, sig_rep.shape[0] - 1)
+            spg_rep = spg_ventanas(sig_rep[ch], fs_rep)
+            spg_tar = spg_ventanas(sig_tar[ch], fs_tar)
 
             # Resultado principal
+            st.markdown('<div class="section-title">Clasificación</div>', unsafe_allow_html=True)
+
             if grupo == 'G':
                 st.markdown(f"""
                 <div class="result-G">
-                    <div class="result-label">Clasificación</div>
+                    <div class="result-label">Resultado del análisis</div>
                     <div class="result-value-G">G — Cerebro Eficiente</div>
-                    <div style="color:#888; font-size:13px; margin-top:8px;">
-                        La red neuronal se mantuvo estable durante la tarea.<br>
-                        Procesamiento fluido, bajo esfuerzo cognitivo.
+                    <div class="result-desc">
+                        ΔR = {delta_r:+.5f} &gt; mediana del dataset (−0.005885)<br>
+                        La red neuronal se adaptó eficientemente durante la tarea.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div class="result-B">
-                    <div class="result-label">Clasificación</div>
-                    <div class="result-value-B">B — Cerebro en Sobrecarga</div>
-                    <div style="color:#888; font-size:13px; margin-top:8px;">
-                        La red neuronal se desestabilizó durante la tarea.<br>
-                        Mayor esfuerzo cognitivo, menor rendimiento esperado.
+                    <div class="result-label">Resultado del análisis</div>
+                    <div class="result-value-B">B — Cerebro Inestable</div>
+                    <div class="result-desc">
+                        ΔR = {delta_r:+.5f} ≤ mediana del dataset (−0.005885)<br>
+                        La red neuronal mostró mayor esfuerzo de reorganización.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
             st.markdown('<br>', unsafe_allow_html=True)
 
-            # Métricas
-            col_a, col_b, col_c, col_d = st.columns(4)
+            # Métricas Motor Omega
+            st.markdown('<div class="section-title">Motor Omega — R y C</div>',
+                        unsafe_allow_html=True)
 
-            with col_a:
-                st.markdown(f"""
+            c1, c2, c3, c4 = st.columns(4)
+            for col, label, val in zip(
+                [c1, c2, c3, c4],
+                ['R Reposo', 'R Tarea', 'C Reposo', 'C Tarea'],
+                [r_rep, r_tar, c_rep, c_tar]
+            ):
+                col.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-label">R Reposo</div>
-                    <div class="metric-value">{r_rep:.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-label">{label}</div>
+                    <div class="metric-value">{val:.5f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            with col_b:
-                st.markdown(f"""
+            c5, c6 = st.columns(2)
+            dr_color = '#1a6b1a' if delta_r > -0.005885 else '#c0392b'
+            dc_color = '#1a6b1a' if abs(delta_c) < 0.05 else '#c0392b'
+
+            c5.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">ΔR (Tarea − Reposo)</div>
+                <div class="metric-value" style="color:{dr_color}">{delta_r:+.5f}</div>
+            </div>""", unsafe_allow_html=True)
+
+            c6.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">ΔC (Tarea − Reposo)</div>
+                <div class="metric-value" style="color:{dc_color}">{delta_c:+.5f}</div>
+            </div>""", unsafe_allow_html=True)
+
+            # Métricas SPG
+            st.markdown('<div class="section-title">SPG — Geometría Espectral</div>',
+                        unsafe_allow_html=True)
+
+            if spg_rep and spg_tar:
+                s1, s2, s3, s4 = st.columns(4)
+                delta_cdyn = spg_tar['C_dyn'] - spg_rep['C_dyn']
+                delta_lam2 = spg_tar['lambda2'] - spg_rep['lambda2']
+
+                for col, label, val in zip(
+                    [s1, s2, s3, s4],
+                    ['λ₂ Reposo', 'λ₂ Tarea', 'C_dyn Reposo', 'C_dyn Tarea'],
+                    [spg_rep['lambda2'], spg_tar['lambda2'],
+                     spg_rep['C_dyn'], spg_tar['C_dyn']]
+                ):
+                    col.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-label">{label}</div>
+                        <div class="metric-value">{val:.5f}</div>
+                    </div>""", unsafe_allow_html=True)
+
+                s5, s6 = st.columns(2)
+                s5.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-label">R Tarea</div>
-                    <div class="metric-value">{r_tar:.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-label">ΔC_dyn (Tarea − Reposo)</div>
+                    <div class="metric-value">{delta_cdyn:+.5f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            with col_c:
-                st.markdown(f"""
+                s6.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-label">C Reposo</div>
-                    <div class="metric-value">{c_rep:.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    <div class="metric-label">Δλ₂ (Tarea − Reposo)</div>
+                    <div class="metric-value">{delta_lam2:+.5f}</div>
+                </div>""", unsafe_allow_html=True)
 
-            with col_d:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">C Tarea</div>
-                    <div class="metric-value">{c_tar:.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            st.markdown('<br>', unsafe_allow_html=True)
-
-            col_e, col_f = st.columns(2)
-
-            with col_e:
-                delta_color = '#4ade80' if delta_r < 0 else '#f87171'
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">ΔR (Tarea − Reposo)</div>
-                    <div class="metric-value" style="color:{delta_color}">{delta_r:+.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col_f:
-                dc_color = '#4ade80' if abs(delta_c) < 0.05 else '#f87171'
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">ΔC (Tarea − Reposo)</div>
-                    <div class="metric-value" style="color:{dc_color}">{delta_c:+.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-            st.markdown('<br>', unsafe_allow_html=True)
+                st.caption(f"Ventanas procesadas — Reposo: {spg_rep['n_ventanas']} · Tarea: {spg_tar['n_ventanas']} · Canal: {ch}")
+            else:
+                st.warning("Señal insuficiente para calcular SPG. Intenta con un archivo más largo o un canal diferente.")
 
             # Gráfica
-            fig = grafica_espacio_spg(r_rep, c_rep, r_tar, c_tar, grupo)
+            st.markdown('<div class="section-title">Visualización</div>', unsafe_allow_html=True)
+            fig = grafica(r_rep, c_rep, r_tar, c_tar, grupo, spg_rep, spg_tar)
             st.pyplot(fig, use_container_width=True)
             plt.close()
 
             # Interpretación
-            st.markdown('<hr class="divider">', unsafe_allow_html=True)
-            st.markdown("#### ¿Qué significan estos números?")
-
+            st.markdown('<div class="section-title">Interpretación</div>', unsafe_allow_html=True)
             st.markdown(f"""
 <div class="info-box">
-<strong>R (Rigidez espectral):</strong> mide qué tan estable está la red cerebral. 
-R bajo significa que la información fluye libremente entre regiones. 
-R alto significa que la red está atascada en un estado.<br><br>
+<strong>Motor Omega:</strong><br>
+R mide la sincronización global de fases entre los {n_ch_rep} canales EEG.
+C mide qué fracción de la amplitud total corresponde al canal de referencia.<br><br>
 
-<strong>C (Coherencia dinámica):</strong> mide la sincronización entre regiones. 
-C alto indica que hay regiones muy desincronizadas del resto.<br><br>
+<strong>SPG — Laplaciano y geometría espectral:</strong><br>
+Para cada ventana de 4 segundos, se construye una red de recurrencia en el espacio de fase 
+de la señal del canal {ch}. El Laplaciano de esa red tiene autovalores λ₁ ≤ λ₂ ≤ ... 
+donde λ₂ mide la conectividad algebraica (qué tan integrada está la red). 
+C_dyn = Var(τ) = varianza del timescale de persistencia τ = λ₂ · M₂/M₁, 
+que mide la heterogeneidad geométrica del atractor en ese momento.<br><br>
 
-<strong>ΔR = {delta_r:+.4f}:</strong> {'La red se volvió más fluida durante la tarea — señal positiva.' if delta_r < 0 else 'La red se tensó durante la tarea — mayor esfuerzo.'}<br><br>
-
-<strong>ΔC = {delta_c:+.4f}:</strong> {'Cambio moderado en coherencia — procesamiento eficiente.' if abs(delta_c) < 0.05 else 'Cambio grande en coherencia — el cerebro trabajó más para reorganizarse.'}<br><br>
-
-<em>Fun fact:</em> Uno pensaría que alguien bueno en aritmética trabajaría más el cerebro. 
-Los datos muestran lo contrario: los cerebros eficientes trabajan menos y producen más. 
-Los inestables hacen más esfuerzo mental con menos resultado.
+<strong>Criterio de clasificación:</strong><br>
+ΔR = {delta_r:+.5f}. Mediana del dataset de entrenamiento = −0.005885.<br>
+{'ΔR > mediana → red neuronal más fluida durante la tarea → G (Eficiente).' if grupo == 'G' 
+else 'ΔR ≤ mediana → red neuronal más rígida durante la tarea → B (Inestable).'}
 </div>
 """, unsafe_allow_html=True)
 
-            # Info técnica
-            st.markdown('<hr class="divider">', unsafe_allow_html=True)
+            st.markdown("""
+<div class="info-box">
+<em>Fun fact:</em> Uno pensaría que alguien bueno en aritmética mental trabajaría 
+más el cerebro. Los datos muestran lo contrario: los cerebros eficientes trabajan menos 
+y producen más. Los inestables hacen más esfuerzo de reorganización con menos resultado. 
+Esto se debe a cómo se comunica el cerebro entre nodos — el cerebro eficiente no necesita 
+reorganizarse al enfrentar el problema porque su red ya está lista.
+</div>
+""", unsafe_allow_html=True)
+
             with st.expander("Información técnica"):
                 st.markdown(f"""
-**Archivos procesados:**
+**Archivos:**
 - Reposo: `{archivo_reposo.name}` · {n_ch_rep} canales · {fs_rep:.0f} Hz
 - Tarea: `{archivo_tarea.name}` · {n_ch_tar} canales · {fs_tar:.0f} Hz
 
-**Motor Omega:**
-Transformada de Hilbert sobre los primeros 23 canales EEG.
-30 segundos de señal. Sin filtro de banda (broadband).
+**Motor Omega:** Transformada de Hilbert · broadband · primeros 23 canales
 
-**Clasificador:**
-Random Forest entrenado con 36 sujetos del dataset PhysioNet EEGMAT.
-Features: R_Reposo, R_Tarea, C_Reposo, C_Tarea, ΔR, ΔC.
-Accuracy: 72.7% · Monte Carlo 100k iteraciones: media 78.3%.
+**SPG:** Embedding de retardo (d=4) → red de recurrencia (percentil 20) → 
+Laplaciano → λ₂ y C_dyn = Var(τ) · Canal {ch} · Ventanas 4s/2s
 
-**Dataset de referencia:**
-PhysioNet EEG During Mental Arithmetic Tasks v1.0.0
-https://physionet.org/content/eegmat/1.0.0/
+**Clasificador:** ΔR > −0.005885 → G · Criterio: mediana de ΔR en 36 sujetos 
+(EEG During Mental Arithmetic Tasks, PhysioNet)
+
+**Dataset:** https://physionet.org/content/eegmat/1.0.0/
 """)
 
 else:
     st.markdown("""
-<div style="text-align:center; color:#444; font-family:'IBM Plex Mono',monospace; 
-font-size:13px; padding:40px 0;">
-↑ Sube los dos archivos EDF para comenzar el análisis
+<div style="text-align:center; color:#999; font-family:'IBM Plex Mono',monospace; 
+font-size:13px; padding:48px 0;">
+Sube los dos archivos EDF para comenzar
 </div>
 """, unsafe_allow_html=True)
 
