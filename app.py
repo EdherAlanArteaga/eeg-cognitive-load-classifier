@@ -38,11 +38,12 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
 html{color-scheme:light;}
-html,body,[class*="css"],.stApp,.stApp *{font-family:'IBM Plex Sans',sans-serif;}
-html,body,[class*="css"]{background:#f5f5f0 !important;color:#1a1a1a !important;}
+html,body{font-family:'IBM Plex Sans',sans-serif;background:#f5f5f0 !important;color:#1a1a1a !important;}
 .stApp{background:#f5f5f0 !important;}
-.stApp p,.stApp span,.stApp label,.stApp div{color:#1a1a1a;}
+.stApp p,.stApp span,.stApp label{color:#1a1a1a;}
 h1,h2,h3,h4{font-family:'IBM Plex Mono',monospace;color:#1a1a1a !important;}
+[data-testid="stFileUploader"]{background:#fff;border:1px solid #d0d0c8;border-radius:8px;padding:8px;}
+[data-testid="stFileUploaderDropzone"]{background:#fbfbf9;}
 .card{background:#fff;border:1px solid #d0d0c8;border-radius:6px;padding:16px;text-align:center;margin:4px 0;}
 .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#777;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
 .val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#1a1a1a;}
