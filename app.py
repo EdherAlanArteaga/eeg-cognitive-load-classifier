@@ -37,9 +37,12 @@ st.set_page_config(page_title="EEG Dynamic Spectral Persistence",
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif;background:#f5f5f0;color:#1a1a1a;}
-.stApp{background:#f5f5f0;}
-h1,h2,h3{font-family:'IBM Plex Mono',monospace;color:#1a1a1a;}
+html{color-scheme:light;}
+html,body,[class*="css"],.stApp,.stApp *{font-family:'IBM Plex Sans',sans-serif;}
+html,body,[class*="css"]{background:#f5f5f0 !important;color:#1a1a1a !important;}
+.stApp{background:#f5f5f0 !important;}
+.stApp p,.stApp span,.stApp label,.stApp div{color:#1a1a1a;}
+h1,h2,h3,h4{font-family:'IBM Plex Mono',monospace;color:#1a1a1a !important;}
 .card{background:#fff;border:1px solid #d0d0c8;border-radius:6px;padding:16px;text-align:center;margin:4px 0;}
 .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#777;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
 .val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#1a1a1a;}
@@ -317,8 +320,10 @@ def fig_barras(r, t):
 
 
 # ── UI ───────────────────────────────────────────────────────────────────────
-st.markdown("# 🧠 EEG Dynamic Spectral Persistence")
-st.markdown("**Edher Alan Arteaga Marroquin · 2026**")
+st.markdown('<h1 style="color:#1a1a1a;">🧠 EEG Dynamic Spectral Persistence</h1>',
+            unsafe_allow_html=True)
+st.markdown('<p style="color:#1a1a1a;font-weight:600;">Edher Alan Arteaga Marroquin · 2026</p>',
+            unsafe_allow_html=True)
 st.markdown("---")
 
 st.markdown("""
