@@ -2,24 +2,24 @@
 EEG Dynamic Spectral Persistence
 Edher Alan Arteaga Marroquin · 2026
 
-Marco v3 — Dynamic Spectral Persistence. Sustituye a v1 (cuaterniónico R, C)
-y v2 (C_dyn = λ₂²·G_pure).
+Framework v3 — Dynamic Spectral Persistence. Replaces v1 (quaternionic R, C)
+and v2 (C_dyn = λ₂²·G_pure).
 
-Observables, de "Dynamic Spectral Persistence in Heterogeneous Networks:
+Observables, from "Dynamic Spectral Persistence in Heterogeneous Networks:
 From Hub Blindness to Heat Kernel Identity":
 
-    V_i      = Σ_{k≥2} v_k(i)²/λ_k          visibilidad espectral
-    V_i      = ∫₀^∞ R_i^⊥(t) dt             identidad exacta (Teorema 2.1)
-    R_i^⊥(t) = Σ_{k≥2} e^{-tλ_k} v_k(i)²    retornabilidad transversa
-    τ_i      = M₂/M₁                        timescale de persistencia
-    τ̃_i      = λ₂ · τ_i                     timescale normalizado
+    V_i      = Σ_{k≥2} v_k(i)²/λ_k          spectral visibility
+    V_i      = ∫₀^∞ R_i^⊥(t) dt             exact identity (Theorem 2.1)
+    R_i^⊥(t) = Σ_{k≥2} e^{-tλ_k} v_k(i)²    transverse returnability
+    τ_i      = M₂/M₁                        persistence timescale
+    τ̃_i      = λ₂ · τ_i                     normalized timescale
 
-Validado antes de publicar:
-    identidad heat kernel        error 2e-16 … 6e-14   (paper: < 5e-15)
-    fórmula cerrada R_hub(t)     error 0.00e+00        (paper: 4.34e-15)
-    ceguera espectral del hub    0.00e+00 exacto
-    anti-centralidad Star S_12   Pearson −1.0000       (paper: −1.000)
-    redes de recurrencia de EEG  Spearman(k,V) −0.90 … −0.99
+Validated before publishing:
+    heat kernel identity          error 2e-16 … 6e-14   (paper: < 5e-15)
+    closed-form R_hub(t)          error 0.00e+00        (paper: 4.34e-15)
+    spectral blindness of the hub 0.00e+00 exact
+    anti-centrality Star S_12     Pearson −1.0000       (paper: −1.000)
+    EEG recurrence networks       Spearman(k,V) −0.90 … −0.99
 """
 import streamlit as st
 import numpy as np
@@ -76,9 +76,9 @@ def elegir_canal(labels):
     for p in PREF_CANAL:
         if p in norm:
             i = norm.index(p)
-            return i, labels[i], "por nombre"
+            return i, labels[i], "by name"
     i = len(labels) // 2
-    return i, labels[i], "fallback — etiqueta no reconocida"
+    return i, labels[i], "fallback — unrecognized label"
 
 
 # ── Preproceso ───────────────────────────────────────────────────────────────
@@ -93,8 +93,8 @@ def preprocesar(x, fs, fmin=0.5, fmax=40.0):
 
 
 def remuestrear(x, fs, fs_obj=FS_OBJETIVO):
-    """resample_poly, no decimate: decimate solo acepta enteros y 250 Hz
-    daría 125 en vez de 100, rompiendo la comparabilidad entre datasets."""
+    """resample_poly, not decimate: decimate only accepts integer factors and
+    250 Hz would give 125 instead of 100, breaking comparability across datasets."""
     if abs(fs - fs_obj) < 1e-6:
         return x, fs
     f = Fraction(fs_obj / fs).limit_denominator(1000)
@@ -125,7 +125,7 @@ def red_recurrencia(x, d=EMBED_D, n_max=N_MAX, pct=PCT):
 
 
 def dsp(A):
-    """V_i, τ_i, τ̃_i y espectro del Laplaciano de una red."""
+    """V_i, τ_i, τ̃_i and the Laplacian spectrum of a network."""
     A = np.array(A, float); np.fill_diagonal(A, 0)
     N = A.shape[0]; deg = A.sum(1)
     ev, evec = eigh(np.diag(deg) - A)
@@ -151,7 +151,7 @@ def returnability(d, i, t):
 
 
 def analizar(x, fs):
-    """Recorre ventanas y agrega los observables v3 del registro completo."""
+    """Iterates over windows and aggregates the v3 observables for the full recording."""
     win, step = int(WIN_S * fs), int(STEP_S * fs)
     if len(x) < win + step:
         return None
@@ -170,7 +170,7 @@ def analizar(x, fs):
         d = dsp(A)
         if d is None:
             continue
-        if d['rango'] > RANGO_MAX:      # τ̃ no converge, ver barrido BA/ER
+        if d['rango'] > RANGO_MAX:      # τ̃ does not converge, see BA/ER sweep
             descartadas += 1
             continue
 
@@ -201,7 +201,7 @@ def analizar(x, fs):
 
 
 def verificar_identidad(d, n_nodos=5):
-    """Teorema 2.1 sobre la red real del sujeto. Integración por cuadratura."""
+    """Theorem 2.1 on the subject's real network. Numerical quadrature integration."""
     from scipy.integrate import quad
     errs = []
     for i in range(min(n_nodos, d['N'])):
@@ -235,27 +235,27 @@ def cargar_edf(b):
 
 # ── Gráficas ─────────────────────────────────────────────────────────────────
 def fig_returnability(dr, dt_):
-    """La firma de v3: separación de timescales entre nodos persistentes y transitorios."""
+    """The signature of v3: timescale separation between persistent and transient nodes."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.4))
     fig.patch.set_facecolor('#f5f5f0')
     ts = np.logspace(-2, 1.2, 160)
-    for ax, d, titulo, col in [(axes[0], dr, 'Reposo', '#666'),
-                               (axes[1], dt_, 'Tarea', '#3a7bd5')]:
+    for ax, d, titulo, col in [(axes[0], dr, 'Rest', '#666'),
+                               (axes[1], dt_, 'Task', '#3a7bd5')]:
         ax.set_facecolor('#fff')
         if d is None:
-            ax.text(.5, .5, 'sin datos', ha='center', va='center',
+            ax.text(.5, .5, 'no data', ha='center', va='center',
                     transform=ax.transAxes, color='#aaa', fontfamily='monospace')
             continue
         i_alto = int(np.argmax(d['V']))
         i_bajo = int(np.argmin(d['V']))
         ax.plot(ts, [returnability(d, i_alto, t) for t in ts], color=col, lw=2.2,
-                label=f'nodo persistente  V={d["V"][i_alto]:.2f}  k={d["deg"][i_alto]:.0f}')
+                label=f'persistent node  V={d["V"][i_alto]:.2f}  k={d["deg"][i_alto]:.0f}')
         ax.plot(ts, [returnability(d, i_bajo, t) for t in ts], color=col, lw=2.2,
-                ls='--', label=f'nodo transitorio  V={d["V"][i_bajo]:.2f}  k={d["deg"][i_bajo]:.0f}')
+                ls='--', label=f'transient node  V={d["V"][i_bajo]:.2f}  k={d["deg"][i_bajo]:.0f}')
         ax.set_xscale('log')
         ax.set_xlabel('t', color='#555', fontfamily='monospace', fontsize=10)
         ax.set_ylabel('R$_i^⊥$(t)', color='#555', fontfamily='monospace', fontsize=10)
-        ax.set_title(f'Retornabilidad — {titulo}', fontfamily='monospace',
+        ax.set_title(f'Returnability — {titulo}', fontfamily='monospace',
                      fontsize=10.5, color='#1a1a1a')
         ax.tick_params(colors='#777')
         for sp in ax.spines.values():
@@ -279,8 +279,8 @@ def fig_anticentralidad(d, titulo):
         ax.plot(xs, np.polyval(z, xs), color='#c0392b', ls='--', lw=1.6)
         ax.set_title(f'{titulo}  ·  Spearman {rs:+.3f}  Pearson {rp:+.3f}',
                      fontfamily='monospace', fontsize=10, color='#1a1a1a')
-    ax.set_xlabel('grado del nodo  k', color='#555', fontfamily='monospace', fontsize=10)
-    ax.set_ylabel('visibilidad espectral  V', color='#555',
+    ax.set_xlabel('node degree  k', color='#555', fontfamily='monospace', fontsize=10)
+    ax.set_ylabel('spectral visibility  V', color='#555',
                   fontfamily='monospace', fontsize=10)
     ax.tick_params(colors='#777')
     for sp in ax.spines.values():
@@ -293,14 +293,14 @@ def fig_anticentralidad(d, titulo):
 def fig_barras(r, t):
     fig, axes = plt.subplots(1, 4, figsize=(13, 3.5))
     fig.patch.set_facecolor('#f5f5f0')
-    campos = [('tau_tilde', '⟨τ̃⟩  persistencia'),
-              ('disp_tau', 'Var(τ̃)  heterogeneidad'),
-              ('lambda2', 'λ₂  conectividad'),
+    campos = [('tau_tilde', '⟨τ̃⟩  persistence'),
+              ('disp_tau', 'Var(τ̃)  heterogeneity'),
+              ('lambda2', 'λ₂  connectivity'),
               ('heterog_V', 'V_max/V_min')]
     for ax, (k, tit) in zip(axes, campos):
         ax.set_facecolor('#fff')
         v = [r[k], t[k]]
-        bars = ax.bar(['Reposo', 'Tarea'], v, color=['#777', '#3a7bd5'],
+        bars = ax.bar(['Rest', 'Task'], v, color=['#777', '#3a7bd5'],
                       alpha=.88, edgecolor='white', lw=1.5)
         for b, x in zip(bars, v):
             ax.text(b.get_x() + b.get_width() / 2, b.get_height() + max(v) * .03,
@@ -323,54 +323,54 @@ st.markdown("---")
 
 st.markdown("""
 <div class="info">
-Analiza <strong>cualquier par de archivos EDF</strong> — reposo y tarea — con el marco
-<strong>Dynamic Spectral Persistence</strong>.<br><br>
-Cada ventana de 4 s se convierte en una red de recurrencia en el espacio de fase.
-Del Laplaciano de esa red se extrae la <strong>visibilidad espectral</strong>
-V<sub>i</sub> = Σ<sub>k≥2</sub> v<sub>k</sub>(i)²/λ<sub>k</sub>, que por el Teorema 2.1
-es exactamente la integral de la retornabilidad del heat kernel, y el
-<strong>timescale de persistencia</strong> τ̃ = λ₂·M₂/M₁.<br><br>
-La pregunta no es qué nodos concentran tráfico sino
-<strong>cuáles sostienen energía</strong>.
+Analyze <strong>any pair of EDF files</strong> — rest and task — with the
+<strong>Dynamic Spectral Persistence</strong> framework.<br><br>
+Every 4-second window is turned into a recurrence network in phase space.
+From that network's Laplacian we extract the <strong>spectral visibility</strong>
+V<sub>i</sub> = Σ<sub>k≥2</sub> v<sub>k</sub>(i)²/λ<sub>k</sub>, which by Theorem 2.1
+is exactly the integral of the heat kernel returnability, and the
+<strong>persistence timescale</strong> τ̃ = λ₂·M₂/M₁.<br><br>
+The question is not which nodes carry the most traffic, but
+<strong>which ones sustain energy</strong>.
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 c1, c2 = st.columns(2)
 with c1:
-    st.markdown("#### Reposo")
-    st.caption("Estado basal.")
+    st.markdown("#### Rest")
+    st.caption("Baseline state.")
     f_rep = st.file_uploader("rep", type=['edf'], key='rep', label_visibility='collapsed')
 with c2:
-    st.markdown("#### Tarea")
-    st.caption("Durante demanda cognitiva.")
+    st.markdown("#### Task")
+    st.caption("During cognitive demand.")
     f_tar = st.file_uploader("tar", type=['edf'], key='tar', label_visibility='collapsed')
 
-with st.expander("Opciones"):
-    canal_manual = st.text_input("Forzar canal por nombre (ej. Fz)", value="")
+with st.expander("Options"):
+    canal_manual = st.text_input("Force channel by name (e.g. Fz)", value="")
     ver_identidad = st.checkbox(
-        "Verificar la identidad del heat kernel sobre esta señal", value=True,
-        help="Comprueba V_i = ∫₀^∞ R_i^⊥(t)dt por cuadratura numérica. "
-             "Debe dar error < 1e-13. Tarda unos segundos.")
+        "Verify the heat kernel identity on this signal", value=True,
+        help="Checks V_i = ∫₀^∞ R_i^⊥(t)dt by numerical quadrature. "
+             "Should give error < 1e-13. Takes a few seconds.")
 
 st.markdown("---")
 
 if f_rep and f_tar:
-    with st.spinner('Construyendo redes de recurrencia y diagonalizando Laplacianos…'):
+    with st.spinner('Building recurrence networks and diagonalizing Laplacians…'):
         sig_r, fs_r, lab_r, dur_r, e1 = cargar_edf(f_rep.read())
         sig_t, fs_t, lab_t, dur_t, e2 = cargar_edf(f_tar.read())
         if sig_r is None or sig_t is None:
-            st.error(f"No se pudo leer el EDF. {e1 or e2}")
+            st.error(f"Could not read the EDF file. {e1 or e2}")
             st.stop()
 
         if canal_manual.strip():
             obj = normalizar_label(canal_manual)
             nr = [normalizar_label(l) for l in lab_r]
             if obj in nr:
-                idx_r, nom_r, via = nr.index(obj), lab_r[nr.index(obj)], "forzado"
+                idx_r, nom_r, via = nr.index(obj), lab_r[nr.index(obj)], "forced"
             else:
                 idx_r, nom_r, via = elegir_canal(lab_r)
-                st.warning(f"'{canal_manual}' no está en el archivo. Usando {nom_r}.")
+                st.warning(f"'{canal_manual}' is not in the file. Using {nom_r}.")
         else:
             idx_r, nom_r, via = elegir_canal(lab_r)
 
@@ -384,7 +384,7 @@ if f_rep and f_tar:
         T = analizar(x_t, fsd_t)
 
     if R is None or T is None:
-        st.error("Señal insuficiente: se necesitan al menos 5 ventanas válidas de 4 s.")
+        st.error("Insufficient signal: at least 5 valid 4-second windows are needed.")
         st.stop()
 
     dtt = T['tau_tilde'] - R['tau_tilde']
@@ -392,19 +392,19 @@ if f_rep and f_tar:
     dvar = T['disp_tau'] - R['disp_tau']
 
     # ── Resultado ────────────────────────────────────────────────────────
-    st.markdown('<div class="sec">Resultado</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Result</div>', unsafe_allow_html=True)
     if dtt > 0:
-        titulo = "La red sostiene energía más tiempo durante la tarea"
-        detalle = ("El timescale de persistencia subió. Los modos lentos del "
-                   "Laplaciano acumulan más energía modal: la dinámica se volvió "
-                   "más persistente.")
+        titulo = "The network sustains energy longer during the task"
+        detalle = ("The persistence timescale went up. The Laplacian's slow modes "
+                   "accumulate more modal energy: the dynamics became "
+                   "more persistent.")
     else:
-        titulo = "La red disipa energía más rápido durante la tarea"
-        detalle = ("El timescale de persistencia bajó. La energía se dispersa "
-                   "antes: la dinámica se volvió más transitoria.")
+        titulo = "The network dissipates energy faster during the task"
+        detalle = ("The persistence timescale went down. Energy disperses "
+                   "sooner: the dynamics became more transient.")
     st.markdown(f"""
     <div class="hero">
-        <div class="hero-l">Dynamic Spectral Persistence · canal {nom_r}</div>
+        <div class="hero-l">Dynamic Spectral Persistence · channel {nom_r}</div>
         <div class="hero-t">{titulo}</div>
         <div class="hero-s">
             Δ⟨τ̃⟩ = {dtt:+.5f} &nbsp;·&nbsp; Δλ₂ = {dl2:+.5f}
@@ -413,18 +413,18 @@ if f_rep and f_tar:
     </div>""", unsafe_allow_html=True)
 
     # ── Observables ──────────────────────────────────────────────────────
-    st.markdown('<div class="sec">Observables v3</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">v3 observables</div>', unsafe_allow_html=True)
     k1, k2, k3, k4 = st.columns(4)
     for col, lab, v in zip([k1, k2, k3, k4],
-                           ['⟨τ̃⟩ reposo', '⟨τ̃⟩ tarea', 'λ₂ reposo', 'λ₂ tarea'],
+                           ['⟨τ̃⟩ rest', '⟨τ̃⟩ task', 'λ₂ rest', 'λ₂ task'],
                            [R['tau_tilde'], T['tau_tilde'], R['lambda2'], T['lambda2']]):
         col.markdown(f'<div class="card"><div class="lbl">{lab}</div>'
                      f'<div class="val">{v:.5f}</div></div>', unsafe_allow_html=True)
 
     k5, k6, k7, k8 = st.columns(4)
     for col, lab, v in zip([k5, k6, k7, k8],
-                           ['Var(τ̃) reposo', 'Var(τ̃) tarea',
-                            'V_max/V_min reposo', 'V_max/V_min tarea'],
+                           ['Var(τ̃) rest', 'Var(τ̃) task',
+                            'V_max/V_min rest', 'V_max/V_min task'],
                            [R['disp_tau'], T['disp_tau'],
                             R['heterog_V'], T['heterog_V']]):
         col.markdown(f'<div class="card"><div class="lbl">{lab}</div>'
@@ -438,151 +438,151 @@ if f_rep and f_tar:
                      f'</div>', unsafe_allow_html=True)
 
     # ── Controles del marco ──────────────────────────────────────────────
-    st.markdown('<div class="sec">Controles del marco</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Framework controls</div>', unsafe_allow_html=True)
 
     a1, a2, a3 = st.columns(3)
-    a1.markdown(f'<div class="card"><div class="lbl">ρ(k,V) Spearman reposo</div>'
+    a1.markdown(f'<div class="card"><div class="lbl">ρ(k,V) Spearman rest</div>'
                 f'<div class="val">{R["rho_spearman"]:+.3f}</div></div>',
                 unsafe_allow_html=True)
-    a2.markdown(f'<div class="card"><div class="lbl">ρ(k,V) Spearman tarea</div>'
+    a2.markdown(f'<div class="card"><div class="lbl">ρ(k,V) Spearman task</div>'
                 f'<div class="val">{T["rho_spearman"]:+.3f}</div></div>',
                 unsafe_allow_html=True)
-    a3.markdown(f'<div class="card"><div class="lbl">rango λmax/λ₂ máx</div>'
+    a3.markdown(f'<div class="card"><div class="lbl">max λmax/λ₂ range</div>'
                 f'<div class="val">{max(R["rango_max"], T["rango_max"]):.0f}</div>'
                 f'</div>', unsafe_allow_html=True)
 
     peor_rho = max(R['rho_spearman'], T['rho_spearman'])
     if peor_rho < -0.7:
         st.markdown(f"""<div class="ok">
-        <strong>Anti-centralidad confirmada.</strong> Spearman(k, V) =
-        {R['rho_spearman']:+.3f} en reposo y {T['rho_spearman']:+.3f} en tarea.
-        Las redes de recurrencia de esta señal se comportan como las redes
-        heterogéneas del paper (referencia: −0.925 a −0.974 en grafos ER).
-        Los nodos de grado alto son los que <em>menos</em> persistencia sostienen.
+        <strong>Anti-centrality confirmed.</strong> Spearman(k, V) =
+        {R['rho_spearman']:+.3f} at rest and {T['rho_spearman']:+.3f} during the task.
+        This signal's recurrence networks behave like the heterogeneous
+        networks in the paper (reference: −0.925 to −0.974 in ER graphs).
+        High-degree nodes are the ones that sustain <em>least</em> persistence.
         </div>""", unsafe_allow_html=True)
     else:
         st.markdown(f"""<div class="warn">
-        <strong>Anti-centralidad débil</strong> (Spearman {peor_rho:+.3f}, se espera
-        &lt; −0.7). La red de recurrencia de esta señal es más homogénea en grado
-        de lo habitual — típico de señales muy periódicas. V y τ̃ siguen siendo
-        válidos pero el contraste entre nodos persistentes y transitorios es menor.
+        <strong>Weak anti-centrality</strong> (Spearman {peor_rho:+.3f}, expected
+        &lt; −0.7). This signal's recurrence network is more degree-homogeneous
+        than usual — typical of highly periodic signals. V and τ̃ are still
+        valid, but the contrast between persistent and transient nodes is smaller.
         </div>""", unsafe_allow_html=True)
 
     desc = R['descartadas'] + T['descartadas']
     if desc:
-        st.markdown(f"""<div class="warn">Se descartaron {desc} ventana(s) con
-        λmax/λ₂ &gt; {RANGO_MAX:.0f}. En el barrido de redes BA/ER, τ̃ dejaba de
-        converger por encima de ese rango: λ₂ colapsa y M₂/M₁ explota.
+        st.markdown(f"""<div class="warn">{desc} window(s) were discarded with
+        λmax/λ₂ &gt; {RANGO_MAX:.0f}. In the BA/ER network sweep, τ̃ stopped
+        converging above that range: λ₂ collapses and M₂/M₁ explodes.
         </div>""", unsafe_allow_html=True)
 
     if ver_identidad:
-        with st.spinner('Verificando V_i = ∫₀^∞ R_i^⊥(t)dt por cuadratura…'):
+        with st.spinner('Verifying V_i = ∫₀^∞ R_i^⊥(t)dt by quadrature…'):
             er = verificar_identidad(R['ejemplo'])
             et = verificar_identidad(T['ejemplo'])
         peor = max(er, et)
         clase = "ok" if peor < 1e-11 else "warn"
         st.markdown(f"""<div class="{clase}">
-        <strong>Identidad del heat kernel (Teorema 2.1).</strong>
-        Error máximo |V<sub>i</sub> − ∫₀^∞ R<sub>i</sub><sup>⊥</sup>(t)dt| =
-        <strong>{peor:.2e}</strong> sobre la red real de esta señal
-        (reposo {er:.2e}, tarea {et:.2e}). El paper reporta &lt; 5e-15 en grafos
-        sintéticos. La visibilidad espectral no es una construcción ad hoc: es
-        la diagonal del resolvente del Laplaciano y equivale al Gramiano de
-        observabilidad.</div>""", unsafe_allow_html=True)
+        <strong>Heat kernel identity (Theorem 2.1).</strong>
+        Maximum error |V<sub>i</sub> − ∫₀^∞ R<sub>i</sub><sup>⊥</sup>(t)dt| =
+        <strong>{peor:.2e}</strong> on this signal's real network
+        (rest {er:.2e}, task {et:.2e}). The paper reports &lt; 5e-15 on
+        synthetic graphs. Spectral visibility is not an ad hoc construction: it
+        is the diagonal of the Laplacian's resolvent and equals the
+        observability Gramian.</div>""", unsafe_allow_html=True)
 
     # ── Gráficas ─────────────────────────────────────────────────────────
-    st.markdown('<div class="sec">Retornabilidad — la firma del marco</div>',
+    st.markdown('<div class="sec">Returnability — the framework\'s signature</div>',
                 unsafe_allow_html=True)
     st.pyplot(fig_returnability(R['ejemplo'], T['ejemplo']), use_container_width=True)
     plt.close()
-    st.caption("Separación de timescales: el nodo de V alta sostiene energía "
-               "mucho después de que el de V baja la disipó. En un grafo estrella "
-               "esa razón es exactamente N.")
+    st.caption("Timescale separation: the high-V node sustains energy "
+               "long after the low-V node has dissipated it. In a star graph "
+               "that ratio is exactly N.")
 
-    st.markdown('<div class="sec">Anti-centralidad</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Anti-centrality</div>', unsafe_allow_html=True)
     g1, g2 = st.columns(2)
     with g1:
-        st.pyplot(fig_anticentralidad(R['ejemplo'], 'Reposo'), use_container_width=True)
+        st.pyplot(fig_anticentralidad(R['ejemplo'], 'Rest'), use_container_width=True)
         plt.close()
     with g2:
-        st.pyplot(fig_anticentralidad(T['ejemplo'], 'Tarea'), use_container_width=True)
+        st.pyplot(fig_anticentralidad(T['ejemplo'], 'Task'), use_container_width=True)
         plt.close()
 
-    st.markdown('<div class="sec">Comparación reposo / tarea</div>',
+    st.markdown('<div class="sec">Rest / task comparison</div>',
                 unsafe_allow_html=True)
     st.pyplot(fig_barras(R, T), use_container_width=True)
     plt.close()
 
     # ── Señal ────────────────────────────────────────────────────────────
-    st.markdown('<div class="sec">Señal analizada</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec">Signal analyzed</div>', unsafe_allow_html=True)
     st.markdown(f"""<div class="info" style="font-size:13px;">
-<strong>Canal:</strong> <code>{nom_r}</code> (índice {idx_r}, {via})<br>
-<strong>Reposo:</strong> {len(lab_r)} canales · {fs_r:.0f} → {fsd_r:.0f} Hz ·
-{dur_r:.0f} s · {R['n_win']} ventanas<br>
-<strong>Tarea:</strong> {len(lab_t)} canales · {fs_t:.0f} → {fsd_t:.0f} Hz ·
-{dur_t:.0f} s · {T['n_win']} ventanas<br>
-<strong>Preproceso:</strong> bandpass 0.5–40 Hz (Butter orden 4, fase cero) ·
-z-score · remuestreo a {FS_OBJETIVO:.0f} Hz
+<strong>Channel:</strong> <code>{nom_r}</code> (index {idx_r}, {via})<br>
+<strong>Rest:</strong> {len(lab_r)} channels · {fs_r:.0f} → {fsd_r:.0f} Hz ·
+{dur_r:.0f} s · {R['n_win']} windows<br>
+<strong>Task:</strong> {len(lab_t)} channels · {fs_t:.0f} → {fsd_t:.0f} Hz ·
+{dur_t:.0f} s · {T['n_win']} windows<br>
+<strong>Preprocessing:</strong> 0.5–40 Hz bandpass (order-4 Butterworth, zero phase) ·
+z-score · resampled to {FS_OBJETIVO:.0f} Hz
 </div>""", unsafe_allow_html=True)
 
     st.markdown(f"""<div class="info">
-<strong>Cómo leer los observables</strong><br><br>
-<strong>V<sub>i</sub></strong> — visibilidad espectral. Cuánta energía modal
-persistente acumula el nodo i. Es la diagonal del resolvente del Laplaciano
-restringido al subespacio transverso, y equivale al Gramiano de observabilidad:
-un nodo de V alta es un buen punto de observación del sistema.<br><br>
-<strong>τ̃ = λ₂·M₂/M₁</strong> — timescale de persistencia normalizado.
-Cuánto tarda la energía en disiparse, en unidades de la escala global de la red.<br><br>
-<strong>Var(τ̃)</strong> — heterogeneidad de persistencia entre nodos. Alta significa
-que la red tiene reservorios y routers bien diferenciados.<br><br>
-<strong>λ₂</strong> — conectividad algebraica. Qué tan integrada está la dinámica.<br><br>
-<strong>ρ(k,V)</strong> — control estructural. Debe ser fuertemente negativo:
-el hub es un router, no un reservorio. Rutea energía bien pero no puede almacenarla.
+<strong>How to read the observables</strong><br><br>
+<strong>V<sub>i</sub></strong> — spectral visibility. How much persistent modal
+energy node i accumulates. It is the diagonal of the Laplacian's resolvent
+restricted to the transverse subspace, and equals the observability Gramian:
+a high-V node is a good observation point for the system.<br><br>
+<strong>τ̃ = λ₂·M₂/M₁</strong> — normalized persistence timescale.
+How long energy takes to dissipate, in units of the network's global scale.<br><br>
+<strong>Var(τ̃)</strong> — persistence heterogeneity across nodes. High means
+the network has well-differentiated reservoirs and routers.<br><br>
+<strong>λ₂</strong> — algebraic connectivity. How integrated the dynamics are.<br><br>
+<strong>ρ(k,V)</strong> — structural control. Should be strongly negative:
+the hub is a router, not a reservoir. It routes energy well but cannot store it.
 </div>""", unsafe_allow_html=True)
 
-    with st.expander("Canales detectados"):
-        st.write("**Reposo:**", ", ".join(lab_r))
-        st.write("**Tarea:**", ", ".join(lab_t))
+    with st.expander("Detected channels"):
+        st.write("**Rest:**", ", ".join(lab_r))
+        st.write("**Task:**", ", ".join(lab_t))
 
-    with st.expander("Método y validación"):
+    with st.expander("Method and validation"):
         st.markdown(f"""
-**Marco:** Dynamic Spectral Persistence (v3). Sustituye al cuaterniónico R, C (v1)
-y a C_dyn = λ₂²·G_pure (v2).
+**Framework:** Dynamic Spectral Persistence (v3). Replaces the quaternionic
+R, C (v1) and C_dyn = λ₂²·G_pure (v2).
 
-**Pipeline:** selección de canal por nombre desde las etiquetas del EDF →
-bandpass 0.5–40 Hz → z-score → remuestreo a {FS_OBJETIVO:.0f} Hz →
-ventanas de {WIN_S} s con paso {STEP_S} s (máx {MAX_WINS}) → embedding de retardo
-d={EMBED_D}, {N_MAX} puntos → red de recurrencia con umbral en percentil {PCT} →
-L = D − A → diagonalización.
+**Pipeline:** channel selection by name from the EDF labels →
+0.5–40 Hz bandpass → z-score → resampled to {FS_OBJETIVO:.0f} Hz →
+{WIN_S}-second windows with {STEP_S}-second step (max {MAX_WINS}) → delay
+embedding d={EMBED_D}, {N_MAX} points → recurrence network with a threshold
+at the {PCT}th percentile → L = D − A → diagonalization.
 
-**Validación ejecutada antes de publicar esta app:**
+**Validation run before publishing this app:**
 
-| Prueba | Resultado | Referencia del paper |
+| Test | Result | Paper reference |
 |---|---|---|
-| Identidad V_i = ∫R_i^⊥dt | 2e-16 … 6e-14 | < 5e-15 |
+| Identity V_i = ∫R_i^⊥dt | 2e-16 … 6e-14 | < 5e-15 |
 | R_hub(t) = 1/N + [(N−1)/N]e^(−Nt) | 0.00e+00 | 4.34e-15 |
-| Ceguera espectral del hub | 0.00e+00 exacto | 6.96e-37 |
-| Anti-centralidad Star S_12 (Pearson) | −1.0000 | −1.000 |
-| τ_hub = 1/N, N ∈ {{6…25}} | error < 1e-16 | exacto |
-| Redes de recurrencia EEG, Spearman(k,V) | −0.90 … −0.99 | −0.925 … −0.974 (ER) |
+| Spectral blindness of the hub | 0.00e+00 exact | 6.96e-37 |
+| Anti-centrality Star S_12 (Pearson) | −1.0000 | −1.000 |
+| τ_hub = 1/N, N ∈ {{6…25}} | error < 1e-16 | exact |
+| EEG recurrence networks, Spearman(k,V) | −0.90 … −0.99 | −0.925 … −0.974 (ER) |
 
-**Estadístico:** el paper usa Pearson en la Tabla 2 y Spearman en la sección 4.2.
-No son intercambiables: en un grafo estrella todas las hojas tienen grado 1,
-y esos empates hacen que Spearman dé −0.49 donde Pearson da −1.000.
-La app reporta ambos.
+**Statistic:** the paper uses Pearson in Table 2 and Spearman in section 4.2.
+They are not interchangeable: in a star graph every leaf has degree 1,
+and those ties make Spearman give −0.49 where Pearson gives −1.000.
+The app reports both.
 
-**Remuestreo:** se usa `resample_poly`, no `decimate`. `decimate` solo acepta
-factores enteros, así que con 250 Hz daría 125 y con 160 Hz daría 80 — nunca 100.
-Verificado que eso rompía la comparabilidad entre datasets.
+**Resampling:** `resample_poly` is used, not `decimate`. `decimate` only
+accepts integer factors, so 250 Hz would give 125 and 160 Hz would give 80 —
+never 100. Verified that this broke comparability across datasets.
 
-**Filtro de degeneración:** ventanas con λmax/λ₂ > {RANGO_MAX:.0f} se descartan.
-Criterio del barrido BA/ER donde τ̃ no convergía en redes con λ₂ ≈ 0.006
-y rango > 6000.
+**Degeneracy filter:** windows with λmax/λ₂ > {RANGO_MAX:.0f} are discarded.
+Criterion from the BA/ER sweep where τ̃ stopped converging in networks with
+λ₂ ≈ 0.006 and range > 6000.
 """)
 else:
     st.markdown("""<div style="text-align:center;color:#bbb;
     font-family:'IBM Plex Mono',monospace;font-size:13px;padding:48px 0;">
-    Sube los dos archivos EDF para comenzar</div>""", unsafe_allow_html=True)
+    Upload both EDF files to begin</div>""", unsafe_allow_html=True)
 
 st.markdown("""
 <div class="foot">
